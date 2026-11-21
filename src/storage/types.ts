@@ -18,6 +18,10 @@ export interface NodeData {
     title?: string;
     favicon?: string;
   };
+  offset?: {
+    x: number;
+    y: number;
+  };
   memo?: string;
 }
 

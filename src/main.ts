@@ -52,6 +52,8 @@ const outlineContainer = document.getElementById('outline-container') as HTMLDiv
 const btnLayoutPicker = document.getElementById('btn-layout-picker') as HTMLButtonElement;
 const currentLayoutLabel = document.getElementById('current-layout-label') as HTMLSpanElement;
 const layoutPopover = document.getElementById('layout-popover') as HTMLDivElement;
+const btnFreeMove = document.getElementById('btn-free-move') as HTMLButtonElement;
+const btnResetPositions = document.getElementById('btn-reset-positions') as HTMLButtonElement;
 const mapTitleInput = document.getElementById('map-title-input') as HTMLInputElement;
 const saveStatus = document.getElementById('save-status') as HTMLSpanElement;
 const btnAddImage = document.getElementById('btn-add-image') as HTMLButtonElement;
@@ -130,6 +132,8 @@ async function loadMapIntoCanvas(doc: MindMapDocument) {
       console.warn('Outliner init warning:', e);
     }
 
+    setupFreeMovePlugin();
+
     mind.bus.addListener('operation', () => {
       scheduleAutoSave();
     });
@@ -137,6 +141,7 @@ async function loadMapIntoCanvas(doc: MindMapDocument) {
     await mind.refresh({
       nodeData: doc.nodeData
     });
+    applyBranchOffsets();
   }
 
   applyViewMode(doc.viewMode || 'mindmap', false);
@@ -273,6 +278,100 @@ function syncOutlinerMedia() {
 }
 
 // ==========================================
+// 自由配置 (Free Move) プラグイン
+// ==========================================
+let isFreeMoveMode = false;
+let branchIndex = 0;
+
+function applyBranchOffsets() {
+  if (!mind || !mind.map) return;
+  const wrappers = mind.map.querySelectorAll('.me-main > .me-wrapper');
+  wrappers.forEach((wrapper: HTMLElement) => {
+    const tpc = wrapper.querySelector('.me-tpc') as any;
+    const nodeObj = tpc?.nodeObj;
+    if (nodeObj && nodeObj.offset) {
+      wrapper.style.transform = `translate(${nodeObj.offset.x}px, ${nodeObj.offset.y}px)`;
+    } else {
+      wrapper.style.transform = '';
+    }
+  });
+}
+
+function setupFreeMovePlugin() {
+  if (!mind) return;
+
+  // 1. generateMainBranch をラップして offset を反映
+  const origGenerateMainBranch = mind.generateMainBranch.bind(mind);
+  mind.generateMainBranch = function (params: any) {
+    const wrappers = mind.map.querySelectorAll('.me-main > .me-wrapper');
+    const wrapper = wrappers[branchIndex % wrappers.length];
+    branchIndex++;
+    const tpc = wrapper?.querySelector('.me-tpc') as any;
+    const offset = tpc?.nodeObj?.offset;
+    if (offset) {
+      params = {
+        ...params,
+        cL: params.cL + (offset.x || 0),
+        cT: params.cT + (offset.y || 0)
+      };
+    }
+    return origGenerateMainBranch(params);
+  };
+
+  // 2. linkDiv が走る前に branchIndex をリセットし、描画後に transform をあてる
+  const origLinkDiv = mind.linkDiv.bind(mind);
+  mind.linkDiv = function (target?: any) {
+    branchIndex = 0;
+    origLinkDiv(target);
+    applyBranchOffsets();
+  };
+
+  // 3. マウスによる区画ドラッグ移動 (自由配置モード時、または Shift / Alt 押下時)
+  mind.map.addEventListener('mousedown', (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const tpc = target.closest('.me-main > .me-wrapper > .me-parent > .me-tpc') as any;
+    if (!tpc || !tpc.nodeObj) return;
+
+    const shouldFreeMove = isFreeMoveMode || e.shiftKey || e.altKey;
+    if (!shouldFreeMove) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const wrapper = tpc.closest('.me-wrapper') as HTMLElement;
+    if (!wrapper) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initOffset = tpc.nodeObj.offset ? { ...tpc.nodeObj.offset } : { x: 0, y: 0 };
+    const scale = mind.scaleVal || 1;
+
+    tpc.style.cursor = 'grabbing';
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const dx = (moveEvent.clientX - startX) / scale;
+      const dy = (moveEvent.clientY - startY) / scale;
+      tpc.nodeObj.offset = {
+        x: Math.round(initOffset.x + dx),
+        y: Math.round(initOffset.y + dy)
+      };
+      wrapper.style.transform = `translate(${tpc.nodeObj.offset.x}px, ${tpc.nodeObj.offset.y}px)`;
+      mind.linkDiv();
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      tpc.style.cursor = '';
+      scheduleAutoSave();
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  });
+}
+
+// ==========================================
 // 2. ローカル自動保存 (IndexedDB)
 // ==========================================
 function scheduleAutoSave() {
@@ -399,6 +498,28 @@ function setupUIEvents() {
         layoutPopover.classList.remove('open');
       }
     });
+  });
+
+  // 自由配置モードの切り替え
+  btnFreeMove.addEventListener('click', () => {
+    isFreeMoveMode = !isFreeMoveMode;
+    btnFreeMove.classList.toggle('btn-primary', isFreeMoveMode);
+    mapContainer.classList.toggle('free-move-active', isFreeMoveMode);
+  });
+
+  // 位置リセット
+  btnResetPositions.addEventListener('click', () => {
+    if (!currentDoc || !mind) return;
+    if (confirm('すべての区画の移動位置をリセットして、自動整列に戻しますか？')) {
+      if (currentDoc.nodeData && Array.isArray(currentDoc.nodeData.children)) {
+        currentDoc.nodeData.children.forEach((child: any) => {
+          delete child.offset;
+        });
+      }
+      mind.refresh();
+      applyBranchOffsets();
+      scheduleAutoSave();
+    }
   });
 
   btnNewMap.addEventListener('click', async () => {

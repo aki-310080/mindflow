@@ -474,3 +474,42 @@ body {
   display: block;
   object-fit: contain;
 }
+
+/* 自由配置 (Free Move) モード */
+.free-move-active .me-main > .me-wrapper > .me-parent > .me-tpc {
+  cursor: grab !important;
+  box-shadow: 0 0 0 2px #38bdf8, 0 4px 12px rgba(56, 189, 248, 0.25) !important;
+}
+
+.free-move-active .me-main > .me-wrapper > .me-parent > .me-tpc:active {
+  cursor: grabbing !important;
+}
+
+.branch-move-handle {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  background: #0284c7;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: grab;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  z-index: 10;
+  transition: transform 0.15s ease;
+  user-select: none;
+}
+
+.branch-move-handle:hover {
+  transform: scale(1.25);
+  background: #0369a1;
+}
+
+.branch-move-handle:active {
+  cursor: grabbing;
+}
