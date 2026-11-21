@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MindFlow - MindMeister Style Web App</title>
+  <link rel="icon" type="image/png" href="/icons/icon48.png">
+  <link rel="stylesheet" href="./src/styles/main.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- 左サイドバー (マップ管理) -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand" style="justify-content: space-between; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 3a9 9 0 0 0-9 9"></path>
+              <path d="M12 21a9 9 0 0 0 9-9"></path>
+            </svg>
+            MindFlow
+          </div>
+          <button id="btn-github-settings" class="btn btn-sm" title="GitHubリポジトリ連携設定">
+            ⚙️ GitHub
+          </button>
+        </div>
+        <button id="btn-new-map" class="btn btn-primary" style="width: 100%;">
+          ＋ 新規マップ作成
+        </button>
+      </div>
+
+      <!-- GitHub 同期バー -->
+      <div class="github-sync-bar">
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+          <span style="font-weight: 600; color: var(--text-muted);">☁️ GitHub クラウド同期</span>
+          <span id="github-status-badge" style="color: var(--text-muted);">未設定</span>
+        </div>
+        <div class="github-sync-actions">
+          <button id="btn-github-push" class="btn btn-sm" style="flex: 1;" title="現在のマップをGitHubへアップロード">
+            ⬆️ 保存(Push)
+          </button>
+          <button id="btn-github-pull" class="btn btn-sm" style="flex: 1;" title="GitHubから最新マップを読み込む">
+            ⬇️ 読込(Pull)
+          </button>
+        </div>
+      </div>
+
+      <div id="map-list" class="map-list">
+        <!-- JSで動的にマップカードを生成 -->
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="btn-export-json" class="btn btn-sm" style="flex: 1;" title="現在のマップをJSONファイルとして保存">
+          💾 保存 (JSON)
+        </button>
+        <button id="btn-import-json" class="btn btn-sm" style="flex: 1;" title="保存したJSONファイルからマップを読み込み">
+          📂 読込
+        </button>
+      </div>
+    </aside>
+
+    <!-- 右メインエリア (大画面エディタ) -->
+    <main class="main-workspace">
+      <nav class="editor-navbar">
+        <div class="editor-title-group">
+          <button id="btn-toggle-sidebar" class="btn btn-sm" title="サイドバーの開閉">
+            ☰
+          </button>
+          <input type="text" id="map-title-input" class="editor-title-input" value="無題のマインドマップ" title="クリックしてタイトルを編集">
+          <span id="save-status" style="font-size: 11px; color: #10b981;">● 保存済み</span>
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <!-- 表示形式切り替え -->
+          <div class="layout-picker-wrapper">
+            <button id="btn-layout-picker" class="btn btn-sm" title="表示形式を切り替え (マインドマップ / 組織図 / リスト)">
+              📐 <span id="current-layout-label">マインドマップ</span> ▾
+            </button>
+            <div id="layout-popover" class="layout-popover">
+              <div class="layout-card active" data-mode="mindmap">
+                <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
+                  <rect x="13" y="11" width="10" height="6" rx="3" fill="#94a3b8"/>
+                  <path d="M13 14 C9 14, 9 7, 5 7" stroke="#cbd5e1" stroke-width="1.8"/>
+                  <path d="M13 14 C9 14, 9 21, 5 21" stroke="#cbd5e1" stroke-width="1.8"/>
+                  <path d="M23 14 C27 14, 27 7, 31 7" stroke="#cbd5e1" stroke-width="1.8"/>
+                  <path d="M23 14 C27 14, 27 21, 31 21" stroke="#cbd5e1" stroke-width="1.8"/>
+                  <rect x="1" y="5" width="6" height="4" rx="2" fill="#cbd5e1"/>
+                  <rect x="1" y="19" width="6" height="4" rx="2" fill="#cbd5e1"/>
+                  <rect x="29" y="5" width="6" height="4" rx="2" fill="#cbd5e1"/>
+                  <rect x="29" y="19" width="6" height="4" rx="2" fill="#cbd5e1"/>
+                </svg>
+                <span class="layout-card-label">マインドマップ</span>
+              </div>
+              <div class="layout-card" data-mode="org">
+                <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
+                  <rect x="13" y="2" width="10" height="5" rx="2" fill="#94a3b8"/>
+                  <path d="M18 7 V12 M6 12 H30 M6 12 V15 M18 12 V15 M30 12 V15" stroke="#cbd5e1" stroke-width="1.6"/>
+                  <rect x="2" y="15" width="8" height="3.5" rx="1.5" fill="#cbd5e1"/>
+                  <rect x="2" y="20" width="8" height="3.5" rx="1.5" fill="#e2e8f0"/>
+                  <rect x="14" y="15" width="8" height="3.5" rx="1.5" fill="#cbd5e1"/>
+                  <rect x="14" y="20" width="8" height="3.5" rx="1.5" fill="#e2e8f0"/>
+                  <rect x="26" y="15" width="8" height="3.5" rx="1.5" fill="#cbd5e1"/>
+                  <rect x="26" y="20" width="8" height="3.5" rx="1.5" fill="#e2e8f0"/>
+                </svg>
+                <span class="layout-card-label">組織図</span>
+              </div>
+              <div class="layout-card" data-mode="list">
+                <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
+                  <rect x="4" y="3" width="12" height="5" rx="2" fill="#94a3b8"/>
+                  <path d="M9 8 V23 M9 13 H13 M9 18 H13 M9 23 H13" stroke="#cbd5e1" stroke-width="1.6"/>
+                  <rect x="13" y="11" width="18" height="3.5" rx="1.5" fill="#cbd5e1"/>
+                  <rect x="13" y="16" width="18" height="3.5" rx="1.5" fill="#cbd5e1"/>
+                  <rect x="13" y="21" width="18" height="3.5" rx="1.5" fill="#cbd5e1"/>
+                </svg>
+                <span class="layout-card-label">リスト</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="width: 1px; height: 20px; background: var(--border-color); margin: 0 2px;"></div>
+          <button id="btn-add-image" class="btn btn-sm" title="選択中のノードに画像を挿入 (またはノード選択して Ctrl+V)">
+            🖼️ 画像を追加
+          </button>
+          <button id="btn-add-link" class="btn btn-sm" title="選択中のノードにリンク(URL)を挿入">
+            🔗 リンクを追加
+          </button>
+          <div style="width: 1px; height: 20px; background: var(--border-color); margin: 0 2px;"></div>
+          <button id="btn-export-png" class="btn btn-sm" title="画像(PNG)として保存">
+            📷 画像保存
+          </button>
+          <button id="btn-export-md" class="btn btn-sm" title="Markdownテキストとして書き出し">
+            📝 Markdown
+          </button>
+        </div>
+      </nav>
+
+      <div class="canvas-area">
+        <div id="map-container"></div>
+        <div id="outline-container"></div>
+
+        <div class="shortcuts-help">
+          <div><kbd>Tab</kbd> 子ノード作成</div>
+          <div><kbd>Enter</kbd> 兄弟ノード作成</div>
+          <div><kbd>Delete</kbd> 削除</div>
+          <div><kbd>Space + ドラッグ</kbd> 画面移動</div>
+          <div><kbd>Ctrl + V</kbd> 画像/リンク貼付</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- GitHub 連携設定モーダル -->
+  <div id="github-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span>⚙️ GitHub プライベートリポジトリ設定</span>
+        <button id="btn-close-modal" class="btn btn-sm" style="border: none; background: transparent;">✕</button>
+      </div>
+
+      <div class="help-box">
+        <strong>セキュリティ推奨:</strong> GitHub の <b>Fine-grained personal access token</b> を作成し、マインドマップ保存用の「プライベートリポジトリ1つだけ」に <b>Contents: Read and write</b> 権限を付与してご利用ください。
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">GitHub ユーザー名 (Owner)</label>
+        <input type="text" id="gh-owner" class="form-input" placeholder="例: your-username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">プライベートリポジトリ名 (Repository)</label>
+        <input type="text" id="gh-repo" class="form-input" placeholder="例: my-mindmaps">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ブランチ名 (Branch)</label>
+        <input type="text" id="gh-branch" class="form-input" value="main" placeholder="main">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Personal Access Token (PAT)</label>
+        <input type="password" id="gh-token" class="form-input" placeholder="github_pat_xxxxxxxx..." autocomplete="new-password" data-1p-ignore="true">
+      </div>
+
+      <div id="gh-test-result" style="font-size: 12px; display: none; padding: 6px 10px; border-radius: 6px;"></div>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px;">
+        <button id="btn-gh-test" class="btn">接続テスト</button>
+        <button id="btn-gh-save" class="btn btn-primary">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 非表示ファイル入力 -->
+  <input type="file" id="image-file-input" accept="image/*" style="display: none;">
+  <input type="file" id="json-file-input" accept=".json" style="display: none;">
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
