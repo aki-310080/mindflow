@@ -83,7 +83,7 @@ export async function testGitHubConnection(config: GitHubConfig): Promise<{ ok: 
 
 // ファイルの現在のSHAを取得 (更新時に必要)
 async function getFileSha(config: GitHubConfig, filePath: string): Promise<string | null> {
-  const url = `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${filePath}?ref=${encodeURIComponent(config.branch)}`;
+  const url = `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${filePath}?ref=${encodeURIComponent(config.branch)}&t=${Date.now()}`;
   const res = await fetch(url, { headers: getHeaders(config.token), cache: 'no-store' });
   if (res.ok) {
     const data = await res.json();
@@ -122,7 +122,7 @@ export async function pushMapToGitHub(config: GitHubConfig, doc: MindMapDocument
 
 // GitHubから全マップ一覧を取得してダウンロード (Pull)
 export async function pullMapsFromGitHub(config: GitHubConfig): Promise<MindMapDocument[]> {
-  const dirUrl = `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${FOLDER_PATH}?ref=${encodeURIComponent(config.branch)}`;
+  const dirUrl = `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${FOLDER_PATH}?ref=${encodeURIComponent(config.branch)}&t=${Date.now()}`;
   const res = await fetch(dirUrl, { headers: getHeaders(config.token), cache: 'no-store' });
 
   if (res.status === 404) {
@@ -142,7 +142,9 @@ export async function pullMapsFromGitHub(config: GitHubConfig): Promise<MindMapD
   const maps: MindMapDocument[] = [];
 
   for (const file of jsonFiles) {
-    const fileRes = await fetch(file.url, { headers: getHeaders(config.token), cache: 'no-store' });
+    // shaベースのBlob APIを使うことで、CDNキャッシュによる古いデータ返却を完全に防止
+    const blobUrl = `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/git/blobs/${file.sha}`;
+    const fileRes = await fetch(blobUrl, { headers: getHeaders(config.token), cache: 'no-store' });
     if (fileRes.ok) {
       const fileData = await fileRes.json();
       if (fileData.content) {

@@ -129,8 +129,10 @@ export async function getMap(id: string): Promise<MindMapDocument | null> {
 }
 
 // 特定マップの保存
-export async function saveMap(doc: MindMapDocument): Promise<void> {
-  doc.updatedAt = Date.now();
+export async function saveMap(doc: MindMapDocument, preserveTimestamp = false): Promise<void> {
+  if (!preserveTimestamp) {
+    doc.updatedAt = Date.now();
+  }
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_MAPS, 'readwrite');

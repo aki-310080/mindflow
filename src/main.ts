@@ -505,19 +505,18 @@ function setupGitHubEvents() {
 
       let importedCount = 0;
       for (const remoteDoc of remoteMaps) {
-        const localDoc = await getMap(remoteDoc.id);
-        if (!localDoc || remoteDoc.updatedAt >= localDoc.updatedAt) {
-          await saveMap(remoteDoc);
-          importedCount++;
-        }
+        await saveMap(remoteDoc, true);
+        importedCount++;
       }
 
-      // 現在表示中のマップが更新されていればリフレッシュ
-      if (currentDoc) {
-        const updatedCurrent = await getMap(currentDoc.id);
-        if (updatedCurrent) {
-          loadMapIntoCanvas(updatedCurrent);
-        }
+      // 更新日時が一番新しいリモートマップを特定
+      const sortedRemote = [...remoteMaps].sort((a, b) => b.updatedAt - a.updatedAt);
+      const currentInRemote = currentDoc ? remoteMaps.find((m) => m.id === currentDoc!.id) : null;
+      const targetToLoad = currentInRemote || sortedRemote[0];
+
+      if (targetToLoad) {
+        await setCurrentMapId(targetToLoad.id);
+        await loadMapIntoCanvas(targetToLoad);
       }
       await renderSidebarList();
 
