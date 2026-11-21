@@ -109,17 +109,25 @@ async function loadMapIntoCanvas(doc: MindMapDocument) {
   mapTitleInput.value = doc.nodeData.topic.replace(/<[^>]*>/g, '').trim() || doc.title;
   document.title = `${mapTitleInput.value} - MindFlow`;
 
+  // デフォルトで右に伸びるように子ノードの展開方向を統一クリーンアップ
+  if (doc.nodeData && Array.isArray(doc.nodeData.children)) {
+    doc.nodeData.children.forEach((child: any) => {
+      delete child.direction;
+    });
+  }
+
   if (!mind) {
     mind = new MindElixir({
       el: mapContainer,
-      direction: MindElixir.SIDE,
+      direction: MindElixir.RIGHT,
       contextMenu: true,
       toolBar: false,
       keypress: true
     });
 
     await mind.init({
-      nodeData: doc.nodeData
+      nodeData: doc.nodeData,
+      direction: MindElixir.RIGHT
     });
 
     try {
@@ -178,7 +186,7 @@ function applyViewMode(mode: ViewMode, shouldSave = true) {
       if (mode === 'org') {
         mind.initDown();
       } else {
-        mind.initSide();
+        mind.initRight();
       }
     }
   }
