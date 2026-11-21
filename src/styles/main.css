@@ -458,3 +458,19 @@ body {
 #map-container.hidden {
   display: none;
 }
+
+/* リスト(Outliner)内の画像・リンク表示 */
+.mindflow-outline-media {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.mindflow-outline-media img {
+  max-width: 240px;
+  max-height: 160px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  display: block;
+  object-fit: contain;
+}

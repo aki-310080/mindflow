@@ -125,6 +125,7 @@ async function loadMapIntoCanvas(doc: MindMapDocument) {
         el: outlineContainer,
         mei: mind
       });
+      setupOutlinerObserver();
     } catch (e) {
       console.warn('Outliner init warning:', e);
     }
@@ -164,6 +165,7 @@ function applyViewMode(mode: ViewMode, shouldSave = true) {
     if (outliner && typeof outliner.render === 'function') {
       outliner.render();
     }
+    requestAnimationFrame(() => syncOutlinerMedia());
   } else {
     outlineContainer.classList.remove('active');
     mapContainer.classList.remove('hidden');
@@ -181,6 +183,92 @@ function applyViewMode(mode: ViewMode, shouldSave = true) {
     if (shouldSave) {
       scheduleAutoSave();
     }
+  }
+}
+
+let isSyncingOutlinerMedia = false;
+
+function setupOutlinerObserver() {
+  const observer = new MutationObserver(() => {
+    if (isSyncingOutlinerMedia) return;
+    requestAnimationFrame(() => syncOutlinerMedia());
+  });
+  observer.observe(outlineContainer, { childList: true, subtree: true });
+
+  // リスト上の行をクリックした際に、対応するマップノードも選択状態にする（画像/リンク貼付を可能にするため）
+  outlineContainer.addEventListener('click', (e) => {
+    const container = (e.target as HTMLElement).closest('.outline-item-container') as HTMLElement | null;
+    const itemId = container?.dataset.itemId;
+    if (itemId && mind) {
+      const nodeEle = (MindElixir as any).E(itemId);
+      if (nodeEle) {
+        mind.selectNode(nodeEle);
+      }
+    }
+  });
+}
+
+function collectNodesMap(node: any, map: Map<string, any>) {
+  if (!node) return;
+  if (node.id) map.set(node.id, node);
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      collectNodesMap(child, map);
+    }
+  }
+}
+
+function syncOutlinerMedia() {
+  if (!mind || !mind.nodeData || isSyncingOutlinerMedia) return;
+  isSyncingOutlinerMedia = true;
+  try {
+    const nodeMap = new Map<string, any>();
+    collectNodesMap(mind.nodeData, nodeMap);
+
+    // 既存の差し込み要素を削除して最新状態に描き直す
+    outlineContainer.querySelectorAll('.mindflow-outline-media, .mindflow-outline-link').forEach((el) => el.remove());
+
+    const containers = outlineContainer.querySelectorAll('.outline-item-container[data-item-id]');
+    containers.forEach((container) => {
+      const id = (container as HTMLElement).dataset.itemId;
+      if (!id) return;
+      const nodeObj = nodeMap.get(id);
+      if (!nodeObj) return;
+
+      const wrapper = container.querySelector('.outline-item-wrapper') as HTMLElement | null;
+      if (!wrapper) return;
+
+      // リンク表示の追加
+      if (nodeObj.hyperLink) {
+        const linkEl = document.createElement('a');
+        linkEl.href = nodeObj.hyperLink;
+        linkEl.target = '_blank';
+        linkEl.rel = 'noopener noreferrer';
+        linkEl.className = 'mindflow-link-pill mindflow-outline-link';
+        linkEl.title = nodeObj.hyperLink;
+        linkEl.textContent = '🔗 リンク';
+        linkEl.addEventListener('click', (e) => e.stopPropagation());
+        wrapper.appendChild(linkEl);
+      }
+
+      // 画像表示の追加
+      if (nodeObj.image && nodeObj.image.url) {
+        const mediaDiv = document.createElement('div');
+        mediaDiv.className = 'mindflow-outline-media';
+        // テキストのインデント位置に揃える
+        const baseMargin = parseInt(wrapper.style.marginLeft || '0', 10) || 0;
+        mediaDiv.style.marginLeft = `${baseMargin + 28}px`;
+
+        const img = document.createElement('img');
+        img.src = nodeObj.image.url;
+        img.alt = '添付画像';
+        mediaDiv.appendChild(img);
+
+        wrapper.insertAdjacentElement('afterend', mediaDiv);
+      }
+    });
+  } finally {
+    isSyncingOutlinerMedia = false;
   }
 }
 
