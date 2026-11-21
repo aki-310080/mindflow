@@ -59,3 +59,55 @@ export async function compressImageToBase64(
     reader.readAsDataURL(file);
   });
 }
+
+// 画像URLから画像サイズを取得し（可能なら圧縮Base64化して）ノード表示用データを返す
+export async function loadImageUrlToCompressed(imageUrl: string): Promise<CompressedImage> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const maxDisplayWidth = 220;
+      let displayWidth = img.naturalWidth || 200;
+      let displayHeight = img.naturalHeight || 150;
+      if (displayWidth > maxDisplayWidth) {
+        displayHeight = Math.round((displayHeight * maxDisplayWidth) / displayWidth);
+        displayWidth = maxDisplayWidth;
+      }
+
+      // 可能であればCanvas経由で軽量WebP化（CORS許可画像の場合）
+      try {
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        const maxDim = 1000;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/webp', 0.82);
+          resolve({ url: dataUrl, width: displayWidth, height: displayHeight });
+          return;
+        }
+      } catch {
+        // CORS制限等でCanvas変換できない場合は元URLをそのまま使用
+      }
+
+      resolve({ url: imageUrl, width: displayWidth, height: displayHeight });
+    };
+    img.onerror = () => {
+      // 読み込みエラー時もフォールバックサイズで返す
+      resolve({ url: imageUrl, width: 200, height: 140 });
+    };
+    img.src = imageUrl;
+  });
+}

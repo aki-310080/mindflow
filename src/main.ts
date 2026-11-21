@@ -18,7 +18,7 @@ import {
   deleteMapFromGitHub,
   GitHubConfig
 } from './storage/github';
-import { compressImageToBase64, CompressedImage } from './utils/image';
+import { compressImageToBase64, loadImageUrlToCompressed, CompressedImage } from './utils/image';
 import { MindMapDocument, ViewMode } from './storage/types';
 
 // DOM Elements
@@ -550,22 +550,44 @@ function setupRichContentHandlers() {
     const items = e.clipboardData?.items;
     if (!items) return;
 
+    // 1. クリップボード内の画像バイナリ（スクショ・画像をコピー）
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf('image') !== -1) {
         const file = items[i].getAsFile();
         if (file) {
           e.preventDefault();
-          const base64 = await compressImageToBase64(file);
-          attachImageToNode(activeNode, base64);
+          const img = await compressImageToBase64(file);
+          attachImageToNode(activeNode, img);
           return;
         }
       }
     }
 
+    // 2. HTMLに <img> が含まれる場合（Webブラウザからの画像コピー等）
+    const html = e.clipboardData?.getData('text/html');
+    if (html) {
+      const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (match && match[1]) {
+        e.preventDefault();
+        const img = await loadImageUrlToCompressed(match[1]);
+        attachImageToNode(activeNode, img);
+        return;
+      }
+    }
+
+    // 3. テキストが画像URLの場合（「画像のアドレスをコピー」等）
     const text = e.clipboardData?.getData('text/plain')?.trim();
-    if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+    if (text && (text.startsWith('http://') || text.startsWith('https://') || text.startsWith('data:image/'))) {
       e.preventDefault();
-      attachLinkToNode(activeNode, text);
+      const isImageUrl =
+        text.startsWith('data:image/') ||
+        /\.(png|jpe?g|gif|webp|svg|bmp)(\?.*)?$/i.test(text);
+      if (isImageUrl) {
+        const img = await loadImageUrlToCompressed(text);
+        attachImageToNode(activeNode, img);
+      } else {
+        attachLinkToNode(activeNode, text);
+      }
     }
   });
 
