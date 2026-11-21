@@ -516,13 +516,15 @@ function setupGitHubEvents() {
 
       if (targetToLoad) {
         await setCurrentMapId(targetToLoad.id);
-        await loadMapIntoCanvas(targetToLoad);
       }
-      await renderSidebarList();
 
-      githubStatusBadge.textContent = `${importedCount}件同期 ✓`;
+      githubStatusBadge.textContent = `${importedCount}件同期！更新中...`;
       githubStatusBadge.style.color = '#10b981';
-      setTimeout(updateGitHubBadge, 3000);
+
+      // 画面・タイトル・リストを確実に最新状態へ反映するため自動リロード
+      setTimeout(() => {
+        window.location.reload();
+      }, 300);
     } catch (err: any) {
       alert(`GitHubからの読み込みに失敗しました:\n${err.message}`);
     } finally {
